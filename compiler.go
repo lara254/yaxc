@@ -176,22 +176,58 @@ func SelectInstructions(expr MonExpression) Instructions {
 			bodyinstructions := SelectInstructions(e.Body)
 			instructions = append(instructions, bodyinstructions.Instructs...)
 			return Instructions{Instructs: instructions}
+		case MonBinary:
+			op := val.Op
+			switch op {
+			case "<":
+				leftExpr := val.Left
+				rightExpr := val.Right
+
+				var leftVarName, rightValue string
+				switch left := leftExpr.(type) {
+				case MonVar:  
+					leftVarName = left.Name
+				default:
+					fmt.Println("Unsupported left operand type")
+					return Instructions{Instructs: [][]string{}}
+				}
+				switch right := rightExpr.(type) {
+				case MonInt:
+					rightValue = strconv.Itoa(right.Value)
+				default:
+					fmt.Println("Unsupported right operand type")
+					return Instructions{Instructs: [][]string{}}
+				}
+				instructions := [][]string{
+					{"cmpq", "$" + rightValue, leftVarName},
+					{"setl", "%al"},
+					{"movzbq", "%al", "%rsi"},}
+				bodyInstructions := SelectInstructions(e.Body)
+				instructions = append(instructions, bodyInstructions.Instructs...)
+				return Instructions{Instructs: instructions}
+			default:
+				fmt.Println("Unsupported binary operator")
+				return Instructions{Instructs: [][]string{}}
+			}
+				
 		default:
 			fmt.Println("Unsupported MonExpression in Let")
 			return Instructions{Instructs: [][]string{}}
 		}
 
 	case MonIf:
-		condInstructions := SelectInstructions(e.Cond)
+		
+		instructions := [][]string{{"cmpq $1, %rsi"}, {"je block_16"}, {"jmp block_17"}, {"block_16"}}
 		thenInstructions := SelectInstructions(e.Then)
 		elseInstructions := SelectInstructions(e.Else)
-		instructions := append(condInstructions.Instructs, []string{"jl", "label1"})
-		instructions = append(instructions, []string{"jmp", "label2"})
-		instructions = append(instructions, []string{"label1"})
 		instructions = append(instructions, thenInstructions.Instructs...)
-		instructions = append(instructions, []string{"label2"})
+		instructions = append(instructions, []string{"jmp conclusion:"})
+		instructions = append(instructions, []string{"block_17"})
 		instructions = append(instructions, elseInstructions.Instructs...)
+		instructions = append(instructions, []string{"jmp conclusion"})
+
 		return Instructions{Instructs: instructions}
+		
 
 	case MonBinary:
 		op := e.Op
@@ -287,12 +323,16 @@ func PrintSelect(ins Instructions) {
 	fmt.Println(ins.Instructs)
 }
 
-/*
+
 func main() {
-	input := "(let ((i 0)) (if (< 2 3) 2 3))"
+	input := "(let ((i 0)) (if (< i 3) 2 3))"
+	//input := "(let ((i (let ((d 4)) (+ 3 3)))) (if (< 2 3) 2 3))"
 	ast, _ := Parse(input)
 	mon := ToAnf(ast, 0)
 	mon_ := PrintMon(mon)
 	fmt.Println(mon_)
+	ss := SelectInstructions(mon)
+	PrintSelect(ss)
+	
 }
-*/
+
