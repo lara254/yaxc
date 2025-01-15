@@ -1,4 +1,4 @@
-A social media site for compiler enthusiasts
+### yet another x86 compiler
 
 ### How to run it
 ```
