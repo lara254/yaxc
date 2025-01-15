@@ -58,52 +58,43 @@ type Instructions struct {
 	Instructs [][]string
 }
 
-func PrintLetExpr(letExpr MonLet) {
-	fmt.Println("Let Expression:")
-	for _, binding := range letExpr.MonBindings {
-		fmt.Printf("Binding: %s = ", binding.Name)
-		PrintMon(binding.Value)
-	}
-	fmt.Printf("Body: ")
-	PrintMon(letExpr.Body)
-	fmt.Println()
+func PrintLetExpr(letExpr MonLet) string {
+	bindings := letExpr.MonBindings
+	variable := bindings[0].Name
+	val := bindings[0].Value
+	return "(let ((" + variable + " " +  PrintMon(val) + "))" + PrintMon(letExpr.Body) + ")"
 }
 
-func PrintMon(mon MonExpression) {
+func PrintMon(mon MonExpression) string  {
 	switch e := mon.(type) {
 	case MonInt:
-		fmt.Printf("MonInt(%d)\n", e.Value)
+		return strconv.Itoa(e.Value)
+		
 	case MonVar:
-		fmt.Printf("MonVar(%s)\n", e.Name)
+		return e.Name
 	case MonLet:
-		PrintLetExpr(e)
+		return PrintLetExpr(e)
 	case MonIf:
-		fmt.Printf("MonIfExpr(Cond: ")
-		PrintMon(e.Cond)
-		fmt.Printf(" Then: ")
-		PrintMon(e.Then)
-		fmt.Printf(" Else: ")
-		PrintMon(e.Else)
-		fmt.Println(")")
+		return "(if " + PrintMon(e.Cond) + " " + PrintMon(e.Then) + " " + PrintMon(e.Else) + ")"
 	case MonBinary:
-		fmt.Printf("MonBinaryOp(Operator: %s, Left: ", e.Op)
-		PrintMon(e.Left)
-		fmt.Printf(", Right: ")
-		PrintMon(e.Right)
-		fmt.Println(")")
+		return "(" + e.Op + " " + PrintMon(e.Left) + " " + PrintMon(e.Right) + ")"
 	case MonWhile:
-		fmt.Printf("MonWhile:")
-		PrintMon(e.Cnd)
-		PrintMon(e.Body)
+		return "(while " + PrintMon(e.Cnd) + " " + PrintMon(e.Body) + ")"
 	case MonSet:
-		PrintMon(e.Var)
-		PrintMon(e.Exp)
+		return "(set " + PrintMon(e.Var) + " " + PrintMon(e.Exp) + ")"
+	case MonBegin:
+		result := "(begin"
+		for i := range e.Exps {
+			result += " " + PrintMon(i)
+		}
+		result += ")"
+		return result
 	default:
-		fmt.Println("Unknown MonExpression")
+		return "Unknown expression"
 	}
 }
 
-func ToAnf(expr Expression) MonExpression {
+func ToAnf(expr Expression, counter int) MonExpression {
 	switch e := expr.(type) {
 	case IntLiteral:
 		return MonInt{Value: e.Value}
@@ -112,34 +103,40 @@ func ToAnf(expr Expression) MonExpression {
 		for i, bind := range e.Bindings {
 			monBindings[i] = MonBinding{
 				Name:  bind.Name,
-				Value: ToAnf(bind.Value),
+				Value: ToAnf(bind.Value, counter ),
 			}
 		}
-		monBody := ToAnf(e.Body)
+		monBody := ToAnf(e.Body, counter)
 		return MonLet{MonBindings: monBindings, Body: monBody}
 	case Var:
 		return MonVar{Name: e.Name}
 	case IfExpr:
-		cnd := ToAnf(e.Cond)
-		thn := ToAnf(e.Then)
-		els := ToAnf(e.Else)
-		return MonIf{Cond: cnd, Then: thn, Else: els}
+		tmp := "temp_" + strconv.Itoa(counter)
+		tmpVar := MonVar{Name: tmp}
+		cnd := ToAnf(e.Cond, counter + 1)
+		thn := ToAnf(e.Then, counter + 1)
+		els := ToAnf(e.Else, counter + 1)
+		ifExp := MonIf{Cond: tmpVar, Then: thn, Else: els}
+		binding := MonBinding{Name: tmp, Value: cnd}
+		monBindings := make([]MonBinding, 1)
+		monBindings[0] = binding 
+		return MonLet{MonBindings: monBindings, Body: ifExp}
 	case BinaryOp:
-		left := ToAnf(e.Left)
-		right := ToAnf(e.Right)
+		left := ToAnf(e.Left, counter)
+		right := ToAnf(e.Right, counter)
 		return MonBinary{Op: e.Operator, Left: left, Right: right}
 	case WhileExpr:
-		cnd := ToAnf(e.Cnd)
-		body := ToAnf(e.Body)
+		cnd := ToAnf(e.Cnd, counter)
+		body := ToAnf(e.Body, counter)
 		return MonWhile{Cnd: cnd, Body: body}
 	case SetExpr:
 		variable := e.Name
-		exp := ToAnf(e.Value)
+		exp := ToAnf(e.Value, counter)
 		return MonSet{Var: variable, Exp: exp}
 	case BeginExpr:
 		exps := make([]MonExpression, len(e.Exprs))
 		for i := range e.Exprs {
-			exps[i] = ToAnf(e.Exprs[i])
+			exps[i] = ToAnf(e.Exprs[i], counter)
 		}
 		return MonBegin{Exps: exps}
 		
@@ -290,3 +287,12 @@ func PrintSelect(ins Instructions) {
 	fmt.Println(ins.Instructs)
 }
 
+/*
+func main() {
+	input := "(let ((i 0)) (if (< 2 3) 2 3))"
+	ast, _ := Parse(input)
+	mon := ToAnf(ast, 0)
+	mon_ := PrintMon(mon)
+	fmt.Println(mon_)
+}
+*/
