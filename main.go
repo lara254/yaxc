@@ -106,6 +106,16 @@ func main() {
            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           );`
 
+	submissionTable := `
+        CREATE TABLE IF NOT EXISTS submission (
+        id SERIAL PRIMARY KEY,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        compiler TEXT NOT NULL,
+        result TEXT NOT NULL,
+        cpu_time FLOAT NOT NULL, -- CPU time in seconds
+        memory_usage BIGINT NOT NULL -- Memory usage in bytes
+       );`
+
 	
 	_, err = db.Exec(compilerTable)
 	if err != nil {
