@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"time"
+	"database/sql"
+	_ "github.com/lib/pq"
 )
 
 type ScmLike struct {
@@ -90,6 +92,28 @@ func main() {
 		WriteTimeout: time.Second,
 	}
 
+	connStr := "user=compiler dbname=compiler password=hello123 sslmode=disable"
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	compilerTable := `
+        CREATE TABLE IF NOT EXISTS compiler (
+           id SERIAL PRIMARY KEY,
+           ir TEXT NOT NULL,
+           assembly TEXT NOT NULL,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );`
+
+	
+	_, err = db.Exec(compilerTable)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+	fmt.Println("Table created successfully!")
+	
+	
 	mux.Handle("/api/compiler", http.HandlerFunc(CompileHandler))
 	mux.HandleFunc("/", defaultHandler)
 	log.Println("listening on port:", PORT)
