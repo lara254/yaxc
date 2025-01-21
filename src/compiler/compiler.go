@@ -3,6 +3,7 @@ package compiler
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Mon Intermediate
@@ -323,3 +324,10 @@ func PrintSelect(ins Instructions) {
 	fmt.Println(ins.Instructs)
 }
 
+func SelectInsToString(arr [][]string) string {
+	rows := make([]string, len(arr))
+	for i, row := range arr {
+		rows[i] = "[" + strings.Join(row, " ") + "]"
+	}
+	return "[" + strings.Join(rows, " ") + "]"
+}
