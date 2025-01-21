@@ -1,4 +1,4 @@
-package main
+package main 
 
 import (
 	"encoding/json"
@@ -11,6 +11,7 @@ import (
 	"time"
 	"database/sql"
 	_ "github.com/lib/pq"
+	"scmlike/src/compiler"
 )
 
 type ScmLike struct {
@@ -22,13 +23,13 @@ type Result struct {
 }
 
 func Compile(exp string) (string, error) {
-	ast, err := Parse(exp)
+	ast, err := compiler.Parse(exp)
 	if err != nil {
 		return "", err
 	}
 
-	monAst := ToAnf(ast, 0)
-	ss := SelectInstructions(monAst)
+	monAst := compiler.ToAnf(ast, 0)
+	ss := compiler.SelectInstructions(monAst)
 	return SelectInsToString(ss.Instructs), nil
 }
 
