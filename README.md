@@ -2,7 +2,7 @@
 
 ### How to run it
 ```
-$ make main
+$ make server 
 ```
 
 #### Compiler Webservice
