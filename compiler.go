@@ -313,7 +313,7 @@ func SelectInstructions(expr MonExpression) Instructions {
 		return Instructions{Instructs: [][]string{}}
 
 	default:
-		// If no case matches, return empty instructions
+		
 		fmt.Println("Unsupported expression type")
 		return Instructions{Instructs: [][]string{}}
 	}
