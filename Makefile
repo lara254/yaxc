@@ -3,10 +3,10 @@ clean:
 yacc:
 	 goyacc -o parser.go parser.y
 
-main:
-	go build -o server  main.go compiler.go parser.go
+server:
+	go build -o server server.go compiler.go parser.go
 compiler:
-	go build -o compiler compiler.go parser.go
+	go build -o compiler main.go compiler.go parser.go
 
 
 
