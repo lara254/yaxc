@@ -117,6 +117,73 @@ func main() {
         memory_usage BIGINT NOT NULL -- Memory usage in bytes
        );`
 
+	userTable := `
+        CREATE TABLE IF NOT EXISTS "user" (
+         id SERIAL PRIMARY KEY,
+         username VARCHAR(50) UNIQUE NOT NULL,
+         email VARCHAR(100) UNIQUE NOT NULL,
+         password VARCHAR(255) NOT NULL,
+         name VARCHAR(100),
+         bio TEXT
+         );`
+	postTable := `
+        CREATE TABLE IF NOT EXISTS "post" (
+         postid SERIAL PRIMARY KEY,
+         userid INT NOT NULL,
+         content TEXT NOT NULL,
+         mediatype VARCHAR(20),
+         mediaurl VARCHAR(255),
+         timestamp TIMESTAMPTZ DEFAULT NOW(),
+         FOREIGN KEY (userid) REFERENCES "user"(id) ON DELETE CASCADE
+         );`
+
+	commentTable := `
+        CREATE TABLE IF NOT EXISTS "comment" (
+         commentid SERIAL PRIMARY KEY,
+         postid INT NOT NULL,
+         userid INT NOT NULL,
+         content TEXT NOT NULL,
+         timestamp TIMESTAMPTZ DEFAULT NOW(),
+         FOREIGN KEY (postid) REFERENCES "post"(postid) ON DELETE CASCADE,
+         FOREIGN KEY (userid) REFERENCES "user"(id) ON DELETE CASCADE
+         );`
+
+	likeTable := `
+        CREATE TABLE IF NOT EXISTS "likes" (
+          likeid SERIAL PRIMARY KEY,
+          postid INT,
+          commentid INT,
+          userid INT NOT NULL,
+          timestamp TIMESTAMPTZ DEFAULT NOW(),
+          FOREIGN KEY (postid) REFERENCES "post"(postid) ON DELETE CASCADE,
+          FOREIGN KEY (commentid) REFERENCES "comment"(commentid) ON DELETE CASCADE,
+          FOREIGN KEY (userid) REFERENCES "user"(id) ON DELETE CASCADE
+         );`
+
+	friendTable := `
+        CREATE TABLE IF NOT EXISTS "friendship" (
+          friendshipid SERIAL PRIMARY KEY,
+          userid1 INT NOT NULL,
+          userid2 INT NOT NULL,
+          timestamp TIMESTAMPTZ DEFAULT NOW(),
+          FOREIGN KEY (userid1) REFERENCES "user"(id) ON DELETE CASCADE,
+          FOREIGN KEY (userid2) REFERENCES "user"(id) ON DELETE CASCADE,
+          UNIQUE (userid1, userid2),
+          CHECK (userid1 != userid2)
+         );`
+
+	messageTable := `
+        CREATE TABLE IF NOT EXISTS "message" (
+          messageid SERIAL PRIMARY KEY,
+          senderid INT NOT NULL,
+          receiverid INT NOT NULL,
+          content TEXT NOT NULL,
+          timestamp TIMESTAMPTZ DEFAULT NOW(),
+          FOREIGN KEY (senderid) REFERENCES "user"(id) ON DELETE CASCADE,
+          FOREIGN KEY (receiverid) REFERENCES "user"(id) ON DELETE CASCADE
+         );`
+         
+         
 	
 	_, err = db.Exec(compilerTable)
 	if err != nil {
@@ -125,6 +192,42 @@ func main() {
 	fmt.Println("Table created successfully!")
 
 	_, err = db.Exec(submissionTable)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+	fmt.Println("Table created sucessfully!")
+
+	_, err = db.Exec(userTable)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+	fmt.Println("Table created successfully!")
+
+	_, err = db.Exec(postTable)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+	fmt.Println("Table created sucessfully!")
+	
+	_, err = db.Exec(commentTable)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+	fmt.Println("Table created successfully!")
+
+	_, err = db.Exec(likeTable)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+	fmt.Println("Table created sucessfully!")
+
+	_, err = db.Exec(friendTable)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+	fmt.Println("Table created successfully!")
+
+	_, err = db.Exec(messageTable)
 	if err != nil {
 		log.Fatalf("Error creating table: %v", err)
 	}
