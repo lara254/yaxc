@@ -41,7 +41,7 @@ func Testx86(t *testing.T) {
 	for i := range len(got) {
 		for j := range len(got[0]) {
 			if got[i][j] != result[i][j] {
-				t.Errorf("SelectInstructions((let ((i 0)) (if (< i 3) 2 3))) = %s; want %s", got[i][j], result[i][j])
+				t.Errorf("got: %s; want: %s", got[i][j], result[i][j])
 			}
 		}
 	}
