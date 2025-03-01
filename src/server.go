@@ -93,28 +93,39 @@ func main() {
 		WriteTimeout: time.Second,
 	}
 
-	connStr := "user=compiler dbname=compiler password=hello123 sslmode=disable"
+	connStr := "user=compiler dbname=compilerdb password=hello123 sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	applicationTable := `CREATE TABLE IF NOT EXISTS application (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          status VARCHAR(50) DEFAULT 'active',
+          created_at TIMESTAMP NOT NULL DEFAULT NOW()
+          );`
+      
 
 	compilerTable := `
         CREATE TABLE IF NOT EXISTS compiler (
            id SERIAL PRIMARY KEY,
            ir TEXT NOT NULL,
            assembly TEXT NOT NULL,
-           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+           app_id INTEGER,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           FOREIGN KEY (app_id) REFERENCES "application"(id) ON DELETE CASCADE
           );`
 
 	submissionTable := `
         CREATE TABLE IF NOT EXISTS submission (
         id SERIAL PRIMARY KEY,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        compiler TEXT NOT NULL,
+        compiler_id INTEGER NOT NULL,
         result TEXT NOT NULL,
-        cpu_time FLOAT NOT NULL, -- CPU time in seconds
-        memory_usage BIGINT NOT NULL -- Memory usage in bytes
+        cpu_time FLOAT NOT NULL,
+        memory_usage BIGINT NOT NULL,
+        FOREIGN KEY (compiler_id) REFERENCES "compiler"(id) ON DELETE CASCADE
        );`
 
 	userTable := `
@@ -123,9 +134,12 @@ func main() {
          username VARCHAR(50) UNIQUE NOT NULL,
          email VARCHAR(100) UNIQUE NOT NULL,
          password VARCHAR(255) NOT NULL,
+         app_id INTEGER,
          name VARCHAR(100),
-         bio TEXT
+         bio TEXT,
+         FOREIGN KEY (app_id) REFERENCES "application"(id) ON DELETE CASCADE
          );`
+	
 	postTable := `
         CREATE TABLE IF NOT EXISTS "post" (
          postid SERIAL PRIMARY KEY,
@@ -183,7 +197,12 @@ func main() {
           FOREIGN KEY (receiverid) REFERENCES "user"(id) ON DELETE CASCADE
          );`
          
-         
+
+	_, err = db.Exec(applicationTable)
+	if err != nil {
+		log.Fatalf("Error creating table: %v", err)
+	}
+	fmt.Println("Table created successfully!")
 	
 	_, err = db.Exec(compilerTable)
 	if err != nil {
