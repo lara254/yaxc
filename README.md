@@ -2,7 +2,7 @@
 A an api for making social medias involving a Scheme compiler
 
 ### Scheme supported
-
+```
 def ::= (define (<var> <formals>) <exp>)
 
 exp ::= <var>
@@ -31,7 +31,7 @@ cexp ::= (if <aexp> <exp> <exp>)
        |  <aexp>
        |  <cexp>
 
-
+```
 ### How to run it
 ```
 $ make server 
