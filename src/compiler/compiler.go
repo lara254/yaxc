@@ -239,7 +239,7 @@ func SelectInstructions(expr MonExpression, n int) Instructions {
 			case MonVar:
 				mv := genMov(cnd, val.Then)
 				mvElse := genMov(cnd, val.Else)
-				cmpq := genCmpq("$1", cnd.Name)
+				cmpq := genCmpq(1, cnd.Name)
 				block := makeBlock(n)
 				block2 := makeBlock(n+1)
 				
@@ -433,8 +433,8 @@ func genMov(cnd MonExpression, exp MonExpression) []string {
 	}
 }
 
-func genCmpq(boool string, cnd string) []string {
-	return []string{"cmpq", boool, cnd}
+func genCmpq(boool int, cnd string) []string {
+	return []string{"cmpq", "$" + strconv.Itoa(boool), cnd}
 }
 
 func makeBlock(block int) string {
