@@ -155,11 +155,8 @@ func ToAnf(expr Expression, counter int) MonExpression {
 		exp := ToAnf(e.Value, counter)
 		return MonSet{Var: variable, Exp: exp}
 	case BeginExpr:
-		exps := make([]MonExpression, len(e.Exprs))
-		for i := range e.Exprs {
-			exps[i] = ToAnf(e.Exprs[i], counter)
-		}
-		return MonBegin{Exps: exps}
+		letExp := BeginToLet(e)
+		return ToAnf(letExp, counter)
 		
 	default:
 		return nil
@@ -358,6 +355,36 @@ func makeLet(expr MonExpression, expr2 MonExpression, tmp string, n int) MonExpr
 	}
 }
 
+func BeginToLet(expr Expression) Expression {
+	switch bgnExpr := expr.(type) {
+	case BeginExpr:
+
+		expsLength := len(bgnExpr.Exprs)
+	        last := bgnExpr.Exprs[expsLength-1]
+
+        	var result Expression = last
+
+        	for i := expsLength - 2; i >= 0; i-- {
+			tmp := "tmp" + strconv.Itoa(i)
+			binding := Binding{
+				Name:  tmp,
+				Value: bgnExpr.Exprs[i],
+			}
+			result = LetExpr{
+				Bindings: []Binding{binding},
+				Body:        result,
+			}
+		}
+		return result
+	default:
+		return expr
+	}
+}
+
+	
+	
+	
+				
 func isAtomic(expr Expression) bool {
 	switch expr.(type) {
 	case IntLiteral:
