@@ -1,4 +1,4 @@
-package compiler 
+package compiler
 
 import (
 	"fmt"
@@ -63,14 +63,14 @@ func PrintLetExpr(letExpr MonLet) string {
 	bindings := letExpr.MonBindings
 	variable := bindings[0].Name
 	val := bindings[0].Value
-	return "(let ((" + variable + " " +  PrintMon(val) + "))" + PrintMon(letExpr.Body) + ")"
+	return "(let ((" + variable + " " + PrintMon(val) + "))" + PrintMon(letExpr.Body) + ")"
 }
 
-func PrintMon(mon MonExpression) string  {
+func PrintMon(mon MonExpression) string {
 	switch e := mon.(type) {
 	case MonInt:
 		return strconv.Itoa(e.Value)
-		
+
 	case MonVar:
 		return e.Name
 	case MonLet:
@@ -104,7 +104,7 @@ func ToAnf(expr Expression, counter int) MonExpression {
 		for i, bind := range e.Bindings {
 			monBindings[i] = MonBinding{
 				Name:  bind.Name,
-				Value: ToAnf(bind.Value, counter ),
+				Value: ToAnf(bind.Value, counter),
 			}
 		}
 		monBody := ToAnf(e.Body, counter)
@@ -114,17 +114,16 @@ func ToAnf(expr Expression, counter int) MonExpression {
 	case IfExpr:
 		tmp := "temp_" + strconv.Itoa(counter)
 		tmpVar := MonVar{Name: tmp}
-		cnd := ToAnf(e.Cond, counter + 1)
-		thn := ToAnf(e.Then, counter + 1)
-		els := ToAnf(e.Else, counter + 1)
+		cnd := ToAnf(e.Cond, counter+1)
+		thn := ToAnf(e.Then, counter+1)
+		els := ToAnf(e.Else, counter+1)
 		ifExp := MonIf{Cond: tmpVar, Then: thn, Else: els}
 		binding := MonBinding{Name: tmp, Value: cnd}
 		monBindings := make([]MonBinding, 1)
-		monBindings[0] = binding 
+		monBindings[0] = binding
 		return MonLet{MonBindings: monBindings, Body: ifExp}
 	case BinaryOp:
 		if isAtomic(e.Left) && isAtomic(e.Right) {
-
 			return MonBinary{Op: e.Operator, Left: ToAnf(e.Left, counter), Right: ToAnf(e.Right, counter)}
 		} else if !isAtomic(e.Left) && isAtomic(e.Right) {
 			tmp := "temp_" + strconv.Itoa(counter+1)
@@ -135,7 +134,7 @@ func ToAnf(expr Expression, counter int) MonExpression {
 			tmp := "temp_" + strconv.Itoa(counter+1)
 			tmpVar := MonVar{Name: tmp}
 			addition := MonBinary{Op: e.Operator, Left: tmpVar, Right: ToAnf(e.Left, counter)}
-			return makeLet(e.Right,addition, tmp, counter+2)
+			return makeLet(e.Right, addition, tmp, counter+2)
 		} else {
 			tmp := "temp_" + strconv.Itoa(counter+1)
 			tmp2 := "temp_" + strconv.Itoa(counter+2)
@@ -145,7 +144,6 @@ func ToAnf(expr Expression, counter int) MonExpression {
 			monLetExp := makeLet(e.Right, addition, tmp2, counter+3)
 			return makeLet(e.Left, monLetExp, tmp, counter+4)
 		}
-	
 	case WhileExpr:
 		cnd := ToAnf(e.Cnd, counter)
 		body := ToAnf(e.Body, counter)
@@ -157,7 +155,6 @@ func ToAnf(expr Expression, counter int) MonExpression {
 	case BeginExpr:
 		letExp := BeginToLet(e)
 		return ToAnf(letExp, counter)
-		
 	default:
 		return nil
 	}
@@ -202,14 +199,12 @@ func SelectInstructions(expr MonExpression, n int) Instructions {
 				rightExpr := val.Right
 
 				var leftValue, rightValue string
-				
+
 				switch left := leftExpr.(type) {
-				case MonVar:  
-					leftValue= left.Name
+				case MonVar:
+					leftValue = left.Name
 				case MonInt:
-					
 					leftValue = strconv.Itoa(left.Value)
-					
 				default:
 					fmt.Println("Unsupported left operand type")
 					return Instructions{Instructs: [][]string{}}
@@ -224,7 +219,8 @@ func SelectInstructions(expr MonExpression, n int) Instructions {
 				instructions := [][]string{
 					{"cmpq", "$" + rightValue, leftValue},
 					{"setl", "%al"},
-					{"movq", "%al", binding.Name},}
+					{"movq", "%al", binding.Name},
+				}
 				bodyInstructions := SelectInstructions(e.Body, n)
 				instructions = append(instructions, bodyInstructions.Instructs...)
 				return Instructions{Instructs: instructions}
@@ -234,30 +230,30 @@ func SelectInstructions(expr MonExpression, n int) Instructions {
 			}
 
 		case MonIf:
-			
 			switch cnd := val.Cond.(type) {
 			case MonVar:
 				mv := genMov(cnd, val.Then)
 				mvElse := genMov(cnd, val.Else)
 				cmpq := genCmpq(1, cnd.Name)
 				block := makeBlock(n)
-				block2 := makeBlock(n+1)
-				
+				block2 := makeBlock(n + 1)
+
 				instructions := [][]string{cmpq, {"je", block}, {"jmp", block2}, {block}, mv, {block2}, mvElse}
-				return Instructions{Instructs: instructions}
+				instructionsBody := SelectInstructions(e.Body, n)
+				instructionsExp := append(instructions, instructionsBody.Instructs...)
+
+				return Instructions{Instructs: instructionsExp}
 			default:
 				fmt.Println("unsupported IF condition, Must be atomic")
 				return Instructions{Instructs: [][]string{}}
 			}
-				
-			
+
 		default:
 			fmt.Println("Unsupported MonExpression in Let")
 			return Instructions{Instructs: [][]string{}}
 		}
 
 	case MonIf:
-		
 		instructions := [][]string{{"cmpq $1, %rsi"}, {"je block_16"}, {"jmp block_17"}, {"block_16"}}
 		thenInstructions := SelectInstructions(e.Then, n)
 		elseInstructions := SelectInstructions(e.Else, n)
@@ -268,22 +264,20 @@ func SelectInstructions(expr MonExpression, n int) Instructions {
 		instructions = append(instructions, []string{"jmp conclusion"})
 
 		return Instructions{Instructs: instructions}
-		
 
 	case MonBinary:
 		op := e.Op
 		switch op {
 		case "<":
-			
 			instructions := make([][]string, 0)
-		
+
 			rightExpr := e.Right
 			leftExpr := e.Left
 			switch valr := rightExpr.(type) {
 			case MonInt:
 				switch vall := leftExpr.(type) {
 				case MonInt:
-					n:= strconv.Itoa(valr.Value)
+					n := strconv.Itoa(valr.Value)
 					n2 := strconv.Itoa(vall.Value)
 					mv := []string{"movq", n, "temp_m0"}
 					cmp := []string{"cmpq", "temp_m0", n2}
@@ -297,10 +291,17 @@ func SelectInstructions(expr MonExpression, n int) Instructions {
 				default:
 					fmt.Println("Unsupported binary op")
 					return Instructions{Instructs: [][]string{}}
-					
+
 				}
 			default:
 				fmt.Println("Unsupported binary operator")
+				return Instructions{Instructs: [][]string{}}
+			}
+
+		case "+":
+			if isAnfVar(e.Left) && (isAnfVar(e.Right)) {
+				return genAddition(e.Left, e.Right)
+			} else {
 				return Instructions{Instructs: [][]string{}}
 			}
 
@@ -308,6 +309,7 @@ func SelectInstructions(expr MonExpression, n int) Instructions {
 			fmt.Println("Unsupported binary operator")
 			return Instructions{Instructs: [][]string{}}
 		}
+
 	case MonWhile:
 		cnd := SelectInstructions(e.Cnd, n)
 		cndins := cnd.Instructs
@@ -354,7 +356,6 @@ func SelectInstructions(expr MonExpression, n int) Instructions {
 		return Instructions{Instructs: [][]string{}}
 
 	default:
-		
 		fmt.Println("Unsupported expression type")
 		return Instructions{Instructs: [][]string{}}
 	}
@@ -366,10 +367,10 @@ func makeLet(expr MonExpression, expr2 MonExpression, tmp string, n int) MonExpr
 	case MonLet:
 		bindings := ae.MonBindings
 		letBody := ae.Body
-		binding := MonBinding{Name: tmp , Value: letBody}
+		binding := MonBinding{Name: tmp, Value: letBody}
 		bindings2 := make([]MonBinding, 1)
 		bindings2[0] = binding
-		return MonLet{MonBindings: bindings, Body: MonLet{MonBindings: bindings2, Body:expr2}}
+		return MonLet{MonBindings: bindings, Body: MonLet{MonBindings: bindings2, Body: expr2}}
 	default:
 		binding := MonBinding{Name: tmp, Value: expr}
 		bindings := make([]MonBinding, 1)
@@ -381,13 +382,12 @@ func makeLet(expr MonExpression, expr2 MonExpression, tmp string, n int) MonExpr
 func BeginToLet(expr Expression) Expression {
 	switch bgnExpr := expr.(type) {
 	case BeginExpr:
-
 		expsLength := len(bgnExpr.Exprs)
-	        last := bgnExpr.Exprs[expsLength-1]
+		last := bgnExpr.Exprs[expsLength-1]
 
-        	var result Expression = last
+		var result Expression = last
 
-        	for i := expsLength - 2; i >= 0; i-- {
+		for i := expsLength - 2; i >= 0; i-- {
 			tmp := "tmp" + strconv.Itoa(i)
 			binding := Binding{
 				Name:  tmp,
@@ -395,7 +395,7 @@ func BeginToLet(expr Expression) Expression {
 			}
 			result = LetExpr{
 				Bindings: []Binding{binding},
-				Body:        result,
+				Body:     result,
 			}
 		}
 		return result
@@ -404,10 +404,6 @@ func BeginToLet(expr Expression) Expression {
 	}
 }
 
-	
-	
-	
-				
 func isAtomic(expr Expression) bool {
 	switch expr.(type) {
 	case IntLiteral:
@@ -418,6 +414,24 @@ func isAtomic(expr Expression) bool {
 		return false
 	}
 }
+
+func genAddition(e MonExpression, e2 MonExpression) Instructions {
+	switch e1 := e.(type) {
+	case MonVar:
+		switch e3 := e.(type) {
+		case MonVar:
+			mov := genMov(e1, MonVar{Name: "%rax"})
+			add := genAdd(MonVar{Name: "%rax"}, e3)
+
+			return Instructions{Instructs: [][]string{mov, add}}
+		default:
+			return Instructions{Instructs: [][]string{}}
+		}
+	default:
+		return Instructions{Instructs: [][]string{}}
+	}
+}
+		
 		
 func genMov(cnd MonExpression, exp MonExpression) []string {
 	switch cond := cnd.(type) {
@@ -425,6 +439,8 @@ func genMov(cnd MonExpression, exp MonExpression) []string {
 		switch expr := exp.(type) {
 		case MonInt:
 			return []string{"movq", "$" + strconv.Itoa(expr.Value), cond.Name}
+		case MonVar:
+			return []string{"movq", cond.Name, expr.Name}
 		default:
 			return []string{}
 		}
@@ -432,6 +448,33 @@ func genMov(cnd MonExpression, exp MonExpression) []string {
 		return []string{"hello"}
 	}
 }
+
+func genAdd(e MonExpression, e2 MonExpression) []string {
+	switch exp := e.(type) {
+	case MonVar:
+		switch exp2 := e2.(type) {
+		case MonVar:
+			return []string{"addq", exp.Name, exp2.Name}
+		default:
+			return []string{}
+		}
+	default:
+		return []string{}
+	}
+}
+
+func isAnfVar(exp MonExpression) bool {
+	switch exp.(type) {
+	case MonVar:
+		return true
+
+	default:
+		return false
+	}
+}
+	
+	
+
 
 func genCmpq(boool int, cnd string) []string {
 	return []string{"cmpq", "$" + strconv.Itoa(boool), cnd}
@@ -452,5 +495,3 @@ func SelectInsToString(arr [][]string) string {
 	}
 	return "[" + strings.Join(rows, " ") + "]"
 }
-
-
