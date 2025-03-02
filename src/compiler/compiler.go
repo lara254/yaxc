@@ -163,7 +163,7 @@ func ToAnf(expr Expression, counter int) MonExpression {
 	}
 }
 
-func SelectInstructions(expr MonExpression) Instructions {
+func SelectInstructions(expr MonExpression, n int) Instructions {
 	switch e := expr.(type) {
 	case MonInt:
 		instructions := make([][]string, 0)
@@ -191,7 +191,7 @@ func SelectInstructions(expr MonExpression) Instructions {
 			strnum := strconv.Itoa(val.Value)
 			movinstruction := []string{"movq", strnum, binding.Name}
 			instructions = append(instructions, movinstruction)
-			bodyinstructions := SelectInstructions(e.Body)
+			bodyinstructions := SelectInstructions(e.Body, n)
 			instructions = append(instructions, bodyinstructions.Instructs...)
 			return Instructions{Instructs: instructions}
 		case MonBinary:
@@ -201,10 +201,15 @@ func SelectInstructions(expr MonExpression) Instructions {
 				leftExpr := val.Left
 				rightExpr := val.Right
 
-				var leftVarName, rightValue string
+				var leftValue, rightValue string
+				
 				switch left := leftExpr.(type) {
 				case MonVar:  
-					leftVarName = left.Name
+					leftValue= left.Name
+				case MonInt:
+					
+					leftValue = strconv.Itoa(left.Value)
+					
 				default:
 					fmt.Println("Unsupported left operand type")
 					return Instructions{Instructs: [][]string{}}
@@ -217,17 +222,35 @@ func SelectInstructions(expr MonExpression) Instructions {
 					return Instructions{Instructs: [][]string{}}
 				}
 				instructions := [][]string{
-					{"cmpq", "$" + rightValue, leftVarName},
+					{"cmpq", "$" + rightValue, leftValue},
 					{"setl", "%al"},
-					{"movzbq", "%al", "%rsi"},}
-				bodyInstructions := SelectInstructions(e.Body)
+					{"movq", "%al", binding.Name},}
+				bodyInstructions := SelectInstructions(e.Body, n)
 				instructions = append(instructions, bodyInstructions.Instructs...)
 				return Instructions{Instructs: instructions}
 			default:
 				fmt.Println("Unsupported binary operator")
 				return Instructions{Instructs: [][]string{}}
 			}
+
+		case MonIf:
+			
+			switch cnd := val.Cond.(type) {
+			case MonVar:
+				mv := genMov(cnd, val.Then)
+				mvElse := genMov(cnd, val.Else)
+				cmpq := genCmpq("$1", cnd.Name)
+				block := makeBlock(n)
+				block2 := makeBlock(n+1)
 				
+				instructions := [][]string{cmpq, {"je", block}, {"jmp", block2}, {block}, mv, {block2}, mvElse}
+				return Instructions{Instructs: instructions}
+			default:
+				fmt.Println("unsupported IF condition, Must be atomic")
+				return Instructions{Instructs: [][]string{}}
+			}
+				
+			
 		default:
 			fmt.Println("Unsupported MonExpression in Let")
 			return Instructions{Instructs: [][]string{}}
@@ -236,8 +259,8 @@ func SelectInstructions(expr MonExpression) Instructions {
 	case MonIf:
 		
 		instructions := [][]string{{"cmpq $1, %rsi"}, {"je block_16"}, {"jmp block_17"}, {"block_16"}}
-		thenInstructions := SelectInstructions(e.Then)
-		elseInstructions := SelectInstructions(e.Else)
+		thenInstructions := SelectInstructions(e.Then, n)
+		elseInstructions := SelectInstructions(e.Else, n)
 		instructions = append(instructions, thenInstructions.Instructs...)
 		instructions = append(instructions, []string{"jmp conclusion:"})
 		instructions = append(instructions, []string{"block_17"})
@@ -286,9 +309,9 @@ func SelectInstructions(expr MonExpression) Instructions {
 			return Instructions{Instructs: [][]string{}}
 		}
 	case MonWhile:
-		cnd := SelectInstructions(e.Cnd)
+		cnd := SelectInstructions(e.Cnd, n)
 		cndins := cnd.Instructs
-		body := SelectInstructions(e.Body)
+		body := SelectInstructions(e.Body, n+1)
 		bodyins := body.Instructs
 
 		instructions := make([][]string, 0)
@@ -303,7 +326,7 @@ func SelectInstructions(expr MonExpression) Instructions {
 	case MonBegin:
 		instructions := make([][]string, 0)
 		for i := range e.Exps {
-			instr := SelectInstructions(e.Exps[i])
+			instr := SelectInstructions(e.Exps[i], n)
 			instructions = append(instructions, instr.Instructs...)
 		}
 		return Instructions{Instructs: instructions}
@@ -396,6 +419,27 @@ func isAtomic(expr Expression) bool {
 	}
 }
 		
+func genMov(cnd MonExpression, exp MonExpression) []string {
+	switch cond := cnd.(type) {
+	case MonVar:
+		switch expr := exp.(type) {
+		case MonInt:
+			return []string{"movq", "$" + strconv.Itoa(expr.Value), cond.Name}
+		default:
+			return []string{}
+		}
+	default:
+		return []string{"hello"}
+	}
+}
+
+func genCmpq(boool string, cnd string) []string {
+	return []string{"cmpq", boool, cnd}
+}
+
+func makeBlock(block int) string {
+	return "block" + strconv.Itoa(block)
+}
 
 func PrintSelect(ins Instructions) {
 	fmt.Println(ins.Instructs)
@@ -408,3 +452,5 @@ func SelectInsToString(arr [][]string) string {
 	}
 	return "[" + strings.Join(rows, " ") + "]"
 }
+
+
