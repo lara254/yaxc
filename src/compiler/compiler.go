@@ -123,9 +123,29 @@ func ToAnf(expr Expression, counter int) MonExpression {
 		monBindings[0] = binding 
 		return MonLet{MonBindings: monBindings, Body: ifExp}
 	case BinaryOp:
-		left := ToAnf(e.Left, counter)
-		right := ToAnf(e.Right, counter)
-		return MonBinary{Op: e.Operator, Left: left, Right: right}
+		if isAtomic(e.Left) && isAtomic(e.Right) {
+
+			return MonBinary{Op: e.Operator, Left: ToAnf(e.Left, counter), Right: ToAnf(e.Right, counter)}
+		} else if !isAtomic(e.Left) && isAtomic(e.Right) {
+			tmp := "temp_" + strconv.Itoa(counter+1)
+			tmpVar := MonVar{Name: tmp}
+			addition := MonBinary{Op: e.Operator, Left: tmpVar, Right: ToAnf(e.Right, counter)}
+			return makeLet(e.Left, addition, tmp, counter+2)
+		} else if isAtomic(e.Left) && !isAtomic(e.Right) {
+			tmp := "temp_" + strconv.Itoa(counter+1)
+			tmpVar := MonVar{Name: tmp}
+			addition := MonBinary{Op: e.Operator, Left: tmpVar, Right: ToAnf(e.Left, counter)}
+			return makeLet(e.Right,addition, tmp, counter+2)
+		} else {
+			tmp := "temp_" + strconv.Itoa(counter+1)
+			tmp2 := "temp_" + strconv.Itoa(counter+2)
+			tmpVar := MonVar{Name: tmp}
+			tmpVar2 := MonVar{Name: tmp2}
+			addition := MonBinary{Op: e.Operator, Left: tmpVar, Right: tmpVar2}
+			monLetExp := makeLet(e.Right, addition, tmp2, counter+3)
+			return makeLet(e.Left, monLetExp, tmp, counter+4)
+		}
+	
 	case WhileExpr:
 		cnd := ToAnf(e.Cnd, counter)
 		body := ToAnf(e.Body, counter)
@@ -319,6 +339,36 @@ func SelectInstructions(expr MonExpression) Instructions {
 		return Instructions{Instructs: [][]string{}}
 	}
 }
+
+func makeLet(expr MonExpression, expr2 MonExpression, tmp string, n int) MonExpression {
+	anfExp := ToAnf(expr, n)
+	switch ae := anfExp.(type) {
+	case MonLet:
+		bindings := ae.MonBindings
+		letBody := ae.Body
+		binding := MonBinding{Name: tmp , Value: letBody}
+		bindings2 := make([]MonBinding, 1)
+		bindings2[0] = binding
+		return MonLet{MonBindings: bindings, Body: MonLet{MonBindings: bindings2, Body:expr2}}
+	default:
+		binding := MonBinding{Name: tmp, Value: expr}
+		bindings := make([]MonBinding, 1)
+		bindings[0] = binding
+		return MonLet{MonBindings: bindings, Body: expr2}
+	}
+}
+
+func isAtomic(expr Expression) bool {
+	switch expr.(type) {
+	case IntLiteral:
+		return true
+	case Var:
+		return true
+	default:
+		return false
+	}
+}
+		
 
 func PrintSelect(ins Instructions) {
 	fmt.Println(ins.Instructs)
